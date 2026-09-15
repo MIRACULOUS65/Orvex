@@ -6,6 +6,14 @@
 
 **Let AI reason about money. Never let it define what it can spend.**
 
+<div align="center">
+ 
+## 🎥 Orvex Demo
+
+[![Orvex Demo Video](./Frontend/Docs/p1.png)](https://youtu.be/dnqY6lMGYPQ)
+
+▶️ **[Watch Demo Video on Youtube](https://youtu.be/dnqY6lMGYPQ)**
+
 ORVEX separates *autonomous reasoning* from *financial authority*. An AI agent may understand a goal, explore the web, compare options and propose a payment — but an independent, deterministic **Sentinel** decides whether that action is actually authorized, simulates it, executes it, and verifies the real on-chain outcome before a single unit of value moves.
 
 [Architecture](#-architecture) · [Subsystems](#-subsystems) · [Run it locally](#-run-it-locally) · [The live demo](#-the-live-demo) · [Security model](#-security-model) · [Testing](#-testing)
