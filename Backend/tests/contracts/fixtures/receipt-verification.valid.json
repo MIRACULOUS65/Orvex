@@ -1,0 +1,20 @@
+{
+  "schema_version": "receipt_verification.v1",
+  "execution_id": "execution_001",
+  "verified": true,
+  "transaction_hash": "0xabc123",
+  "expected": {
+    "recipient": "0x1111111111111111111111111111111111111111",
+    "asset": "USDC",
+    "amount": "4.20",
+    "network": "base-sepolia"
+  },
+  "actual": {
+    "recipient": "0x1111111111111111111111111111111111111111",
+    "asset": "USDC",
+    "amount": "4.20",
+    "network": "base-sepolia"
+  },
+  "discrepancies": [],
+  "verified_at": "2026-09-11T12:11:05Z"
+}

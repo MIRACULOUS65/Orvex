@@ -1,0 +1,15 @@
+{
+  "schema_version": "intent.v1",
+  "intent_id": "intent_001",
+  "agent_id": "agent_001",
+  "user_goal": "Pay the monthly API subscription",
+  "purpose": "Maintain access",
+  "desired_outcome": "renewed",
+  "budget": {
+    "maximum": 100.0,
+    "currency": "USDC"
+  },
+  "valid_from": "2026-09-11T12:00:00Z",
+  "valid_until": "2026-10-11T12:00:00Z",
+  "created_at": "2026-09-11T12:00:00Z"
+}

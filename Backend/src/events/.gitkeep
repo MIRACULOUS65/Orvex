@@ -1,0 +1,1 @@
+# Internal event bus / consumers (Redis Streams). Typed, versioned, tenant-aware.

@@ -1,0 +1,25 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+*.tsbuildinfo
+
+# Env / secrets (NEVER commit real secrets)
+.env
+.env.local
+*.env.local
+
+# Test / coverage
+coverage/
+.vitest/
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Prisma (generated client)
+src/generated/

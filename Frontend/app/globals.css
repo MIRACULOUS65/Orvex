@@ -1,0 +1,597 @@
+/* ==========================================================================
+   ORVEX hero — built to the exact JungleMind hero spec (every value matched),
+   adapted only in COPY/BRAND to ORVEX, our execution-safe autonomous finance
+   control plane. Layout, tokens, animation and behavior are identical to spec.
+   ========================================================================== */
+
+:root {
+  --ink: #111111;
+  --muted: #5c5c5c;
+  --card: rgba(248, 248, 246, 0.97);
+  --shell: 1120px;
+  --ease: cubic-bezier(0.16, 1, 0.3, 1); /* expo-out, used by every animation */
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: #eef2ee;
+  overflow-x: hidden;
+}
+
+body {
+  font-family: "Poppins", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+body.menu-open {
+  overflow: hidden;
+}
+
+/* ---- 3. BACKGROUND VIDEO — NO OVERLAY ---------------------------------- */
+.hero__bg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  animation: fade-in 1.15s var(--ease) both;
+}
+.hero__bg video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
+}
+
+/* ---- 4. HERO SHELL ----------------------------------------------------- */
+.hero {
+  position: relative;
+  height: 100vh;
+  height: 100svh;
+  min-height: 620px;
+  width: 100%;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.hero__inner {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/* ---- 5. NAV BAR (desktop) ---------------------------------------------- */
+.nav {
+  position: relative;
+  z-index: 70;
+  width: 100%;
+  max-width: var(--shell);
+  margin: 0 auto;
+  padding: 26px 24px 0;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 16px;
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 25px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  text-decoration: none;
+}
+.brand svg {
+  width: 30px;
+  height: 30px;
+  display: block;
+}
+
+.nav__cta {
+  justify-self: end;
+}
+
+.nav__links {
+  display: flex;
+  align-items: center;
+  gap: 42px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.nav__links a {
+  font-size: 15px;
+  font-weight: 400;
+  color: #1a1a1a;
+  text-decoration: none;
+  opacity: 0.9;
+  transition: opacity 0.18s ease;
+}
+.nav__links a:hover {
+  opacity: 0.55;
+}
+
+.btn-dark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #141414;
+  color: #fff;
+  font-family: inherit;
+  font-size: 14.5px;
+  font-weight: 500;
+  padding: 13px 22px;
+  border: 0;
+  border-radius: 9px;
+  white-space: nowrap;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background 0.18s ease, transform 0.18s ease;
+}
+.btn-dark:hover {
+  background: #000;
+  transform: translateY(-1px);
+}
+
+/* ---- 6. HAMBURGER BUTTON ----------------------------------------------- */
+.nav__toggle {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  margin-right: -10px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.nav__toggle-box {
+  position: relative;
+  display: block;
+  width: 22px;
+  height: 14px;
+}
+.nav__toggle .bar {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  height: 1.8px;
+  border-radius: 2px;
+  background: #141414;
+  transition: transform 0.55s var(--ease), width 0.45s var(--ease);
+}
+.bar--top {
+  top: 0;
+}
+.bar--bot {
+  bottom: 0;
+  width: 70%;
+}
+.nav__toggle:hover .bar--bot {
+  width: 100%;
+}
+.nav__toggle[aria-expanded="true"] .bar--top {
+  transform: translateY(6.1px) rotate(45deg);
+}
+.nav__toggle[aria-expanded="true"] .bar--bot {
+  width: 100%;
+  transform: translateY(-6.1px) rotate(-45deg);
+}
+
+.nav .menu__cta {
+  display: none;
+}
+
+/* ---- 7. CENTRE STACK --------------------------------------------------- */
+.stage {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 24px;
+  gap: clamp(18px, 2.4vh, 26px);
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid rgba(0, 0, 0, 0.07);
+  border-radius: 999px;
+  padding: 7px 16px 7px 8px;
+  font-size: 13.5px;
+  color: #4a4a4a;
+}
+.badge__tag {
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid rgba(0, 0, 0, 0.07);
+  border-radius: 999px;
+  padding: 3px 12px;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: #111;
+}
+
+.headline {
+  margin: 0;
+  font-size: clamp(32px, 5.7vw, 72px);
+  line-height: 1.03;
+  font-weight: 500;
+  letter-spacing: -0.035em;
+  max-width: 20ch;
+}
+
+.sub {
+  margin: 0;
+  font-size: clamp(14px, 1.35vw, 17.5px);
+  line-height: 1.65;
+  font-weight: 400;
+  color: var(--muted);
+  max-width: 66ch;
+}
+
+.brk {
+  display: none;
+}
+@media (min-width: 900px) {
+  .brk {
+    display: inline;
+  }
+  .stage .headline {
+    max-width: none;
+  }
+  .stage .sub {
+    max-width: none;
+  }
+}
+
+/* ---- 8. PROMPT CARD (frosted glass) ------------------------------------ */
+.prompt {
+  width: min(790px, 100%);
+  background: rgba(255, 255, 255, 0.42);
+  -webkit-backdrop-filter: blur(18px) saturate(1.15);
+  backdrop-filter: blur(18px) saturate(1.15);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: 20px;
+  padding: 22px 20px 16px;
+  text-align: left;
+  box-shadow: 0 18px 44px -26px rgba(0, 0, 0, 0.28);
+  margin-top: clamp(6px, 1.6vh, 16px);
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.prompt__input {
+  width: 100%;
+  border: 0;
+  outline: 0;
+  resize: none;
+  background: transparent;
+  font-family: inherit;
+  font-size: 16.5px;
+  line-height: 1.5;
+  color: var(--ink);
+  min-height: clamp(56px, 11vh, 108px);
+  padding: 2px 4px;
+}
+.prompt__input::placeholder {
+  color: #3d3d3d;
+  opacity: 0.72;
+}
+
+.prompt__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 10px;
+}
+.prompt__right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  background: #fff;
+  color: #1a1a1a;
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.18s ease;
+}
+.icon-btn:hover {
+  background: #f1f1ef;
+}
+.icon-btn--bare {
+  border: 0;
+  background: transparent;
+  width: 34px;
+}
+.icon-btn--bare:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+.icon-btn--send {
+  background: #141414;
+  border-color: #141414;
+  color: #fff;
+  width: 46px;
+  height: 46px;
+  border-radius: 12px;
+}
+.icon-btn--send:hover {
+  background: #000;
+}
+.icon-btn svg {
+  width: 19px;
+  height: 19px;
+}
+.icon-btn--send svg {
+  width: 21px;
+  height: 21px;
+}
+
+/* ---- 9. PAGE-LOAD ENTRANCE ANIMATION ----------------------------------- */
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 18px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.rise {
+  animation: rise 0.9s var(--ease) both;
+  animation-delay: calc(var(--i, 0) * 70ms);
+}
+
+/* ---- 10. MOBILE MENU — max-width: 900px -------------------------------- */
+@media (max-width: 900px) {
+  .nav {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 18px 20px 0;
+  }
+  .brand,
+  .nav__toggle {
+    position: relative;
+    z-index: 80;
+  }
+  .brand {
+    font-size: 21px;
+    margin-right: auto;
+  }
+  .brand svg {
+    width: 25px;
+    height: 25px;
+  }
+  .btn-dark {
+    padding: 11px 17px;
+    font-size: 13.5px;
+  }
+  .nav__toggle {
+    display: inline-flex;
+  }
+
+  .nav__nav {
+    position: fixed;
+    inset: 0;
+    z-index: 60;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 30px;
+    padding: 92px 28px 46px;
+    background: #fafbf9;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-12px);
+    transition: opacity 0.45s var(--ease), transform 0.45s var(--ease), visibility 0s linear 0.45s;
+  }
+  .nav__nav.is-open {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+    transition: opacity 0.6s var(--ease), transform 0.6s var(--ease), visibility 0s linear 0s;
+  }
+
+  .nav__links {
+    flex-direction: column;
+    gap: 2px;
+    width: 100%;
+    max-width: 340px;
+  }
+  .nav__links li {
+    overflow: hidden;
+  }
+  .nav__links a {
+    display: block;
+    padding: 9px 0;
+    text-align: center;
+    font-size: clamp(26px, 7.4vw, 34px);
+    font-weight: 500;
+    letter-spacing: -0.03em;
+    opacity: 0;
+    transform: translateY(115%);
+    transition: opacity 0.5s var(--ease), transform 0.7s var(--ease);
+  }
+  .nav__links a:hover {
+    opacity: 0;
+  }
+  .nav__nav.is-open .nav__links a {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  .nav__nav.is-open .nav__links a:hover {
+    opacity: 0.55;
+  }
+
+  .nav__nav.is-open .nav__links li:nth-child(1) a {
+    transition-delay: 0.12s;
+  }
+  .nav__nav.is-open .nav__links li:nth-child(2) a {
+    transition-delay: 0.18s;
+  }
+  .nav__nav.is-open .nav__links li:nth-child(3) a {
+    transition-delay: 0.24s;
+  }
+  .nav__nav.is-open .nav__links li:nth-child(4) a {
+    transition-delay: 0.30s;
+  }
+  .nav__links .rise {
+    animation: none;
+  }
+
+  .menu__cta {
+    opacity: 0;
+    transform: translateY(16px);
+    transition: opacity 0.5s var(--ease), transform 0.6s var(--ease), background 0.18s ease;
+  }
+  .nav__nav.is-open .menu__cta {
+    opacity: 1;
+    transform: translateY(0);
+    transition-delay: 0.36s;
+  }
+}
+
+/* ---- 11. PHONE — max-width: 640px -------------------------------------- */
+@media (max-width: 640px) {
+  .hero {
+    min-height: 560px;
+  }
+  .nav__cta {
+    display: none;
+  }
+  .nav .menu__cta {
+    display: inline-flex;
+    width: 100%;
+    max-width: 340px;
+    padding: 15px 22px;
+    font-size: 15px;
+    border-radius: 11px;
+  }
+  .stage {
+    padding: 16px 18px 22px;
+    gap: 16px;
+  }
+  .headline {
+    font-size: clamp(26px, 7.6vw, 36px);
+    max-width: 13ch;
+    letter-spacing: -0.03em;
+  }
+  .sub {
+    font-size: 14px;
+    line-height: 1.6;
+    max-width: 40ch;
+  }
+  .badge {
+    font-size: 12px;
+    padding: 6px 13px 6px 6px;
+    gap: 10px;
+  }
+  .badge__tag {
+    font-size: 12px;
+    padding: 3px 10px;
+  }
+  .prompt {
+    border-radius: 17px;
+    padding: 16px 14px 12px;
+  }
+  .prompt__input {
+    font-size: 16px;
+    min-height: 62px;
+  }
+  .icon-btn {
+    width: 38px;
+    height: 38px;
+  }
+  .icon-btn--bare {
+    width: 32px;
+  }
+  .icon-btn--send {
+    width: 42px;
+    height: 42px;
+    border-radius: 11px;
+  }
+}
+
+/* ---- 12. LANDSCAPE PHONES ---------------------------------------------- */
+@media (max-height: 560px) and (orientation: landscape) {
+  .hero {
+    height: auto;
+    min-height: 100svh;
+  }
+  .stage {
+    padding-block: 34px;
+  }
+  .prompt__input {
+    min-height: 48px;
+  }
+}
+
+/* ---- 13. REDUCED MOTION ------------------------------------------------ */
+@media (prefers-reduced-motion: reduce) {
+  .hero__bg video {
+    display: none;
+  }
+  .hero__bg,
+  .rise {
+    animation: none !important;
+  }
+  .nav__nav,
+  .nav__nav .nav__links a,
+  .menu__cta,
+  .nav__toggle .bar {
+    transition-duration: 0.01ms !important;
+    transition-delay: 0s !important;
+  }
+  .nav__nav,
+  .nav__nav .nav__links a,
+  .menu__cta {
+    transform: none !important;
+  }
+}

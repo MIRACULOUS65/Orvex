@@ -1,0 +1,41 @@
+{
+  "name": "@sentinelpay/backend-core",
+  "version": "0.1.0",
+  "private": true,
+  "description": "SentinelPay Backend / Sentinel Core — deterministic control plane. AI recommends; the Core authorizes.",
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.test.json",
+    "dev": "node --watch --experimental-strip-types --experimental-transform-types src/server.ts",
+    "start": "npm run build && node dist/server.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate:diff": "prisma migrate diff --from-empty --to-schema-datamodel prisma/schema.prisma --script"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "@types/pg": "^8.23.1",
+    "embedded-postgres": "^18.4.0-beta.17",
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0"
+  },
+  "dependencies": {
+    "@fastify/cors": "^11.3.0",
+    "@fastify/swagger": "^9.8.1",
+    "@opentelemetry/api": "^1.9.1",
+    "@opentelemetry/resources": "^2.11.0",
+    "@opentelemetry/sdk-node": "^0.222.0",
+    "@opentelemetry/semantic-conventions": "^1.43.0",
+    "@prisma/client": "^6.19.3",
+    "fastify": "^5.12.4",
+    "ioredis": "^6.0.0",
+    "pg": "^8.23.0",
+    "prisma": "^6.19.3",
+    "zod": "^4.6.2"
+  }
+}

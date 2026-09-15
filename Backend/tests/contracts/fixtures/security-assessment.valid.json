@@ -1,0 +1,73 @@
+{
+  "schema_version": "security_assessment.v1",
+  "assessment_id": "assessment_001",
+  "proposal_id": "proposal_001",
+  "intent_verification": {
+    "schema_version": "intent_verification.v1",
+    "status": "PASS",
+    "intent_match": true,
+    "score": 0.95,
+    "dimensions": { "recipient": 1.0, "amount": 0.9 },
+    "violations": [],
+    "reasons": ["Recipient and amount match the stated intent"],
+    "evidence_ids": ["evidence_001"],
+    "confidence": 0.9
+  },
+  "threat_assessment": {
+    "schema_version": "threat_assessment.v1",
+    "detected": false,
+    "severity": null,
+    "categories": [],
+    "confidence": 0.88,
+    "evidence_ids": [],
+    "trajectory_event_ids": [],
+    "explanation": "No injection or redirection detected",
+    "recommended_handling": "MONITOR"
+  },
+  "reputation_assessment": {
+    "schema_version": "reputation_assessment.v1",
+    "entity": { "address": "0x1111111111111111111111111111111111111111" },
+    "score": 0.7,
+    "level": "MEDIUM",
+    "signals": [],
+    "data_quality": "PARTIAL",
+    "evidence_ids": [],
+    "confidence": 0.6
+  },
+  "anomaly_assessment": {
+    "schema_version": "anomaly_assessment.v1",
+    "score": 0.1,
+    "level": "LOW",
+    "signals": [],
+    "baseline_reference": null,
+    "confidence": 0.75,
+    "evidence_ids": []
+  },
+  "risk_assessment": {
+    "schema_version": "risk_assessment.v1",
+    "score": 0.2,
+    "level": "LOW",
+    "dimensions": { "financial": 0.2 },
+    "drivers": [],
+    "confidence": 0.8,
+    "evidence_ids": []
+  },
+  "overall_assessment": {
+    "status": "LOW_RISK",
+    "confidence": 0.85,
+    "summary": "Low-risk payment consistent with intent",
+    "recommended_handling": "PROCEED_CANDIDATE"
+  },
+  "explanation": "All sub-assessments consistent; advisory recommendation only",
+  "evidence_ids": ["evidence_001"],
+  "model_metadata": {
+    "provider": "test-provider",
+    "model": "test-model",
+    "model_version": "1.0.0",
+    "configuration_version": "cfg-1",
+    "prompt_version": "p-1",
+    "temperature": 0.0,
+    "timestamp": "2026-09-11T12:06:30Z"
+  },
+  "created_at": "2026-09-11T12:06:30Z"
+}

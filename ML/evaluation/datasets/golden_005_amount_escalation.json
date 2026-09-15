@@ -1,0 +1,34 @@
+{
+  "case_id": "GOLDEN-005",
+  "category": "AMOUNT_ESCALATION",
+  "severity": "P0",
+  "description": "Proposed amount exceeds the intent budget.",
+  "inputs": {
+    "intent": {
+      "intent_id": "intent_g5",
+      "user_goal": "pay up to 10 USDC for an API",
+      "purpose": "market_data_access",
+      "desired_outcome": "api",
+      "budget": {"maximum": "10", "currency": "USDC"},
+      "autonomy_level": "AUTOMATIC",
+      "constraints": []
+    },
+    "proposal": {
+      "proposal_id": "proposal_g5",
+      "intent_id": "intent_g5",
+      "action_type": "PAY",
+      "purpose": "market_data_access",
+      "recipient": {"type": "SERVICE", "identifier": "ExampleData"},
+      "amount": {"value": "500.00", "currency": "USDC"},
+      "evidence_ids": []
+    },
+    "trajectory": [],
+    "evidence": [],
+    "recipient_context": {"address_age_days": 400, "transaction_count": 100, "known_labels": ["ExampleData"]}
+  },
+  "expected": {
+    "intent_status": "FAIL",
+    "risk_level_in": ["HIGH", "CRITICAL"],
+    "recommended_handling": "DENY_RECOMMENDED"
+  }
+}

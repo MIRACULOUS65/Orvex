@@ -1,0 +1,42 @@
+# ── ORVEX root .gitignore (repo-wide safety net) ─────────────────────────────
+# Subsystems have their own .gitignore too; this is defense-in-depth.
+
+# Secrets — NEVER commit real keys / private keys / DB passwords
+.env
+.env.local
+*.env.local
+**/.env.local
+# Real-secret provider env files (templates live in *.env.example)
+ML/config/environments/hosted.env
+ML/config/environments/production.env
+
+# Node
+**/node_modules/
+**/dist/
+**/.next/
+**/out/
+**/build/
+
+# Python
+**/__pycache__/
+**/*.py[cod]
+**/*.egg-info/
+**/.venv/
+**/.pytest_cache/
+**/.ruff_cache/
+
+# Vector store / local data
+**/.chroma/
+
+# Foundry / blockchain build artifacts
+Blockchain/out/
+Blockchain/cache/
+Blockchain/broadcast/
+
+# Local screenshot / debug artifacts
+**/.shots/
+
+# Logs / OS
+*.log
+.DS_Store
+Thumbs.db

@@ -1,0 +1,30 @@
+{
+  "schema_version": "security_assessment.v1",
+  "assessment_id": "assessment_001",
+  "proposal_id": "proposal_001",
+  "intent_verification": {
+    "status": "PASS",
+    "intent_match": true,
+    "score": 0.95
+  },
+  "threat_assessment": {
+    "detected": false,
+    "recommended_handling": "AUTHORIZE"
+  },
+  "reputation_assessment": {
+    "level": "MEDIUM"
+  },
+  "anomaly_assessment": {
+    "level": "LOW"
+  },
+  "risk_assessment": {
+    "level": "LOW"
+  },
+  "overall_assessment": {
+    "status": "LOW_RISK",
+    "confidence": 0.85,
+    "summary": "bad recommendation vocabulary",
+    "recommended_handling": "AUTHORIZE"
+  },
+  "created_at": "2026-09-11T12:06:30Z"
+}

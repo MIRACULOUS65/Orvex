@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+
+# Env / secrets (NEVER commit real secrets)
+.env
+.env.local
+*.env.local
+# Real-secret provider env files — templates live in .env.example only.
+config/environments/hosted.env
+config/environments/production.env
+
+# Vector store local data
+.chroma/
+chroma/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Reports (generated)
+evaluation/reports/*.json
+!evaluation/reports/.gitkeep

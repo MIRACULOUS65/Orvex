@@ -1,0 +1,16 @@
+{
+  "schema_version": "policy_evaluation.v1",
+  "policy_id": "policy_001",
+  "policy_version": 7,
+  "status": "PASS",
+  "rules_checked": [
+    { "rule_id": "rule_001", "result": "PASS" },
+    { "rule_id": "rule_002", "result": "PASS" }
+  ],
+  "violations": [],
+  "trajectory_context": {
+    "trace_id": "trace_001",
+    "events_considered": 19
+  },
+  "evaluated_at": "2026-09-11T12:07:10Z"
+}

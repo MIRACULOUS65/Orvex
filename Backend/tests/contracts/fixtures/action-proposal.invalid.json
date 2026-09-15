@@ -1,0 +1,13 @@
+{
+  "schema_version": "action_proposal.v1",
+  "proposal_id": "proposal_001",
+  "intent_id": "intent_001",
+  "agent_id": "agent_001",
+  "action_type": "BRIBE",
+  "purpose": "API access renewal",
+  "amount": {
+    "value": 4.2,
+    "currency": "USDC"
+  },
+  "created_at": "2026-09-11T12:05:00Z"
+}

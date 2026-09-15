@@ -1,0 +1,2 @@
+# Deterministic model response fixtures keyed by request hash (<key>.json).
+# Loaded by MockProvider for offline, reproducible tests.

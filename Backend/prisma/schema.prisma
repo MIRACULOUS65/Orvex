@@ -1,0 +1,883 @@
+// SentinelPay Backend / Sentinel Core — Prisma schema.
+//
+// Canonical persistence model per BACKEND_DATABASE.md. PostgreSQL is the durable
+// source of truth for Core application state. This file is built up phase-by-phase:
+//
+//   Phase 3 (this batch): Company, Agent, Constitution, Capability — the authoritative
+//                         tenant + agent identity/authority layer (§6-§12).
+//
+// Conventions enforced across the model:
+//   - Every company-scoped row carries company_id and is FK-bound to its Company
+//     (tenant boundary, §54). Cross-tenant references are structurally impossible.
+//   - Money is stored as Decimal (numeric) — NEVER floating point (§60). The API
+//     contract remains an exact decimal string; @db.Decimal(38, 18) preserves scale.
+//   - Version history is immutable: a change creates a new row, never an in-place
+//     mutation of an ACTIVE/SUPERSEDED version (§10, §16, §36).
+//   - JSONB is used for flexible sub-structures (scopes, configuration) while the
+//     security/financial values that must be queried remain typed columns (§59).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// --------------------------------------------------------------------------- //
+// Enums
+// --------------------------------------------------------------------------- //
+
+enum CompanyStatus {
+  ACTIVE
+  SUSPENDED
+  DISABLED
+}
+
+enum AgentStatus {
+  CREATED
+  CONFIGURED
+  ACTIVE
+  PAUSED
+  SUSPENDED
+  DISABLED
+}
+
+enum ExecutionMode {
+  SIMULATE
+  REVIEW_ONLY
+  TESTNET
+  AUTONOMOUS
+}
+
+enum ConstitutionStatus {
+  DRAFT
+  VALIDATING
+  APPROVED
+  ACTIVE
+  SUPERSEDED
+  DISABLED
+}
+
+enum CapabilityStatus {
+  ACTIVE
+  EXPIRED
+  REVOKED
+}
+
+// Phase 4 — policy lifecycle (§13-§16).
+
+enum PolicyStatus {
+  DRAFT
+  ACTIVE
+  DISABLED
+}
+
+enum PolicyVersionStatus {
+  DRAFT
+  VALIDATING
+  SIMULATED
+  APPROVED
+  ACTIVE
+  SUPERSEDED
+  DISABLED
+}
+
+// Phase 5 — financial state / reservations / idempotency (§43-§45, §51-§52).
+
+enum FinancialAccountScope {
+  AGENT
+  COMPANY
+  CATEGORY
+  RECIPIENT
+}
+
+enum ReservationStatus {
+  RESERVED
+  COMMITTED
+  RELEASED
+  UNKNOWN
+}
+
+enum IdempotencyStatus {
+  IN_PROGRESS
+  COMPLETED
+  FAILED
+}
+
+// Phase 6 — trajectory / provenance (§21-§24).
+
+enum TrajectoryTraceStatus {
+  ACTIVE
+  COMPLETED
+  ABORTED
+  CORRUPTED
+}
+
+// Phase 10 — decision (§35/§36).
+
+enum DecisionResultEnum {
+  ALLOW
+  REVIEW
+  DENY
+}
+
+// Phase 11 — human approval (§37/§38).
+
+enum ApprovalRequestStatus {
+  PENDING
+  APPROVED
+  DENIED
+  EXPIRED
+  CANCELLED
+}
+
+enum ApprovalResultEnum {
+  APPROVED
+  DENIED
+  EXPIRED
+}
+
+// Phase 12 — execution requests (§39).
+
+enum ExecutionRequestStatus {
+  CREATED
+  AUTHORIZED
+  SUBMITTED
+  CONFIRMED
+  FAILED
+  UNKNOWN
+  CANCELLED
+}
+
+// Phase 13 — execution results + receipt verification (§40-§42).
+
+enum ExecutionResultStatus {
+  SUBMITTED
+  CONFIRMED
+  FAILED
+  UNKNOWN
+}
+
+enum ReceiptVerificationStatus {
+  PENDING
+  VERIFIED
+  MISMATCH
+  FAILED
+  UNKNOWN
+}
+
+// Phase 14 — attestation (§50).
+
+enum AttestationStatus {
+  PENDING
+  SUBMITTED
+  CONFIRMED
+  FAILED
+}
+
+// Product surface — intent / proposal / security-assessment persistence (§17-§19, §25).
+
+enum IntentRecordStatus {
+  VALID
+  NEEDS_CLARIFICATION
+  EXPIRED
+  CANCELLED
+  COMPLETED
+}
+
+enum ProposalRecordStatus {
+  RECEIVED
+  VALIDATING
+  EVALUATING
+  APPROVED_CANDIDATE
+  REVIEW_REQUIRED
+  DENIED
+  COMPLETED
+}
+
+// --------------------------------------------------------------------------- //
+// §6 Company — root tenant boundary
+// --------------------------------------------------------------------------- //
+
+model Company {
+  id        String        @id @default(uuid())
+  name      String
+  status    CompanyStatus @default(ACTIVE)
+  createdAt DateTime      @default(now()) @map("created_at")
+  updatedAt DateTime      @updatedAt @map("updated_at")
+
+  agents            Agent[]
+  constitutions     Constitution[]
+  capabilities      Capability[]
+  policies          Policy[]
+  financialAccounts FinancialAccount[]
+  trajectoryTraces  TrajectoryTrace[]
+  trajectoryEvents  TrajectoryEvent[]
+  decisions         Decision[]
+  approvalRequests  ApprovalRequest[]
+  executionRequests ExecutionRequestRecord[]
+  auditEvents       AuditEvent[]
+  attestations      AttestationRecord[]
+  intents           IntentRecord[]
+  proposals         ActionProposalRecord[]
+  securityAssessments SecurityAssessmentRecord[]
+
+  @@index([status])
+  @@map("companies")
+}
+
+// --------------------------------------------------------------------------- //
+// §7 Agent — belongs to exactly one company
+// --------------------------------------------------------------------------- //
+
+model Agent {
+  id       String      @id @default(uuid())
+  companyId String     @map("company_id")
+  name     String
+  purpose  String      @default("")
+  status   AgentStatus @default(CREATED)
+  executionMode ExecutionMode @default(SIMULATE) @map("execution_mode")
+
+  // Active authority pointers. constitution is FK-bound (same company enforced in
+  // app logic + relation). Policy arrives in Phase 4, so activePolicyId is a plain
+  // nullable column for now (no FK target table yet) — see deviation note.
+  activeConstitutionId String? @map("active_constitution_id")
+  activePolicyId       String? @map("active_policy_id")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  company            Company        @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  activeConstitution Constitution?  @relation("AgentActiveConstitution", fields: [activeConstitutionId], references: [id], onDelete: SetNull)
+  constitutions      Constitution[] @relation("AgentConstitutions")
+  capabilities       Capability[]
+
+  // Agent names unique within a company (§65).
+  @@unique([companyId, name])
+  @@index([companyId])
+  @@index([status])
+  @@map("agents")
+}
+
+// --------------------------------------------------------------------------- //
+// §9 Constitution — versioned authority definition (immutable per version)
+// --------------------------------------------------------------------------- //
+
+model Constitution {
+  id        String             @id @default(uuid())
+  companyId String             @map("company_id")
+  agentId   String             @map("agent_id")
+  version   Int
+  status    ConstitutionStatus @default(DRAFT)
+  purpose   String             @default("")
+
+  // Full canonical constitution shape (allowed actions/assets/networks/categories,
+  // spending limits, approval/recipient/time rules). Stored as JSONB; the fields the
+  // engine queries directly live on Capability rows as typed columns.
+  configurationJson Json   @map("configuration_json")
+  hash              String
+
+  createdBy    String?   @map("created_by")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  activatedAt  DateTime? @map("activated_at")
+  deactivatedAt DateTime? @map("deactivated_at")
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  agent   Agent   @relation("AgentConstitutions", fields: [agentId], references: [id], onDelete: Restrict)
+
+  activeForAgents Agent[] @relation("AgentActiveConstitution")
+
+  // Exactly one row per (agent, version) — immutable version history (§10).
+  @@unique([agentId, version])
+  @@index([companyId])
+  @@index([agentId])
+  @@index([status])
+  @@map("constitutions")
+}
+
+// --------------------------------------------------------------------------- //
+// §11 Capability — scoped authorization envelope (may be delegated)
+// --------------------------------------------------------------------------- //
+
+model Capability {
+  id        String           @id @default(uuid())
+  companyId String           @map("company_id")
+  agentId   String           @map("agent_id")
+
+  // §12 delegation hierarchy: a child capability references its parent and must not
+  // expand authority beyond it (enforced in CapabilityManager + tested).
+  parentCapabilityId String? @map("parent_capability_id")
+
+  action   String
+  asset    String?
+  network  String?
+
+  // Scope sets stored as JSONB arrays (queryable membership handled in app logic).
+  categoryScopeJson  Json? @map("category_scope_json")
+  recipientScopeJson Json? @map("recipient_scope_json")
+
+  // Money limits — Decimal, never float (§60). Null = no limit at this dimension.
+  singleTransactionLimit Decimal? @map("single_transaction_limit") @db.Decimal(38, 18)
+  dailyLimit             Decimal? @map("daily_limit") @db.Decimal(38, 18)
+  weeklyLimit            Decimal? @map("weekly_limit") @db.Decimal(38, 18)
+  monthlyLimit           Decimal? @map("monthly_limit") @db.Decimal(38, 18)
+
+  validFrom DateTime  @default(now()) @map("valid_from")
+  expiresAt DateTime? @map("expires_at")
+
+  status    CapabilityStatus @default(ACTIVE)
+  createdBy String?          @map("created_by")
+  createdAt DateTime         @default(now()) @map("created_at")
+  revokedAt DateTime?        @map("revoked_at")
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  agent   Agent   @relation(fields: [agentId], references: [id], onDelete: Restrict)
+
+  parent   Capability?  @relation("CapabilityDelegation", fields: [parentCapabilityId], references: [id], onDelete: Restrict)
+  children Capability[] @relation("CapabilityDelegation")
+
+  @@index([companyId])
+  @@index([agentId])
+  @@index([status])
+  @@index([parentCapabilityId])
+  @@map("capabilities")
+}
+
+// --------------------------------------------------------------------------- //
+// §13 Policy — logical policy identity
+// --------------------------------------------------------------------------- //
+
+model Policy {
+  id          String       @id @default(uuid())
+  companyId   String       @map("company_id")
+  agentId     String?      @map("agent_id")
+  name        String
+  description String       @default("")
+  currentVersion Int       @default(0) @map("current_version")
+  status      PolicyStatus @default(DRAFT)
+  createdBy   String?      @map("created_by")
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+
+  company  Company         @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  versions PolicyVersion[]
+
+  @@index([companyId])
+  @@index([agentId])
+  @@index([status])
+  @@map("policies")
+}
+
+// --------------------------------------------------------------------------- //
+// §14 PolicyVersion — each immutable version holds the compiled rule set
+// --------------------------------------------------------------------------- //
+
+model PolicyVersion {
+  id       String              @id @default(uuid())
+  policyId String              @map("policy_id")
+  version  Int
+  status   PolicyVersionStatus @default(DRAFT)
+
+  // Deterministic compiled rule model consumed by the Policy Engine (§14/§59).
+  compiledPolicyJson Json   @map("compiled_policy_json")
+  hash               String
+  sourceType         String? @map("source_type")
+  sourceReference    String? @map("source_reference")
+
+  createdAt     DateTime  @default(now()) @map("created_at")
+  activatedAt   DateTime? @map("activated_at")
+  deactivatedAt DateTime? @map("deactivated_at")
+  approvedBy    String?   @map("approved_by")
+
+  policy Policy       @relation(fields: [policyId], references: [id], onDelete: Restrict)
+  rules  PolicyRule[]
+
+  // Immutable version history (§16, §65).
+  @@unique([policyId, version])
+  @@index([policyId])
+  @@index([status])
+  @@map("policy_versions")
+}
+
+// --------------------------------------------------------------------------- //
+// §15 PolicyRule — normalized, queryable rule identity
+// --------------------------------------------------------------------------- //
+
+model PolicyRule {
+  id              String @id @default(uuid())
+  policyVersionId String @map("policy_version_id")
+  ruleId          String @map("rule_id")
+  ruleType        String @map("rule_type")
+  priority        Int    @default(100)
+  configurationJson Json @map("configuration_json")
+  enabled         Boolean @default(true)
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  policyVersion PolicyVersion @relation(fields: [policyVersionId], references: [id], onDelete: Cascade)
+
+  @@unique([policyVersionId, ruleId])
+  @@index([policyVersionId])
+  @@index([ruleType])
+  @@map("policy_rules")
+}
+
+// --------------------------------------------------------------------------- //
+// §43 FinancialAccount — logical spending state owned by Core
+// --------------------------------------------------------------------------- //
+
+model FinancialAccount {
+  id        String                @id @default(uuid())
+  companyId String                @map("company_id")
+  agentId   String?               @map("agent_id")
+  scope     FinancialAccountScope
+  // Scope key: for AGENT it's the agentId, for RECIPIENT the recipient id, for
+  // CATEGORY the category name, for COMPANY the companyId. Combined with asset/network
+  // it uniquely identifies one budget bucket.
+  scopeKey  String                @map("scope_key")
+  asset     String
+  network   String?
+
+  // Exact decimal balances — never float (§60).
+  currentReserved  Decimal @default(0) @map("current_reserved") @db.Decimal(38, 18)
+  currentCommitted Decimal @default(0) @map("current_committed") @db.Decimal(38, 18)
+  // Authorization limit for this bucket (null = no bucket-level cap).
+  limitAmount      Decimal? @map("limit_amount") @db.Decimal(38, 18)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  company      Company                @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  reservations FinancialReservation[]
+
+  // Exactly one account per (company, scope, scopeKey, asset, network).
+  @@unique([companyId, scope, scopeKey, asset, network])
+  @@index([companyId])
+  @@index([agentId])
+  @@map("financial_accounts")
+}
+
+// --------------------------------------------------------------------------- //
+// §44 FinancialReservation — temporary budget hold with lifecycle
+// --------------------------------------------------------------------------- //
+
+model FinancialReservation {
+  id                 String            @id @default(uuid())
+  companyId          String            @map("company_id")
+  agentId            String?           @map("agent_id")
+  executionRequestId String?           @map("execution_request_id")
+  financialAccountId String            @map("financial_account_id")
+  amount             Decimal           @db.Decimal(38, 18)
+  asset              String
+  status             ReservationStatus @default(RESERVED)
+  createdAt          DateTime          @default(now()) @map("created_at")
+  releasedAt         DateTime?         @map("released_at")
+  committedAt        DateTime?         @map("committed_at")
+
+  account FinancialAccount @relation(fields: [financialAccountId], references: [id], onDelete: Restrict)
+
+  @@index([companyId])
+  @@index([financialAccountId])
+  @@index([status])
+  @@index([executionRequestId])
+  @@map("financial_reservations")
+}
+
+// --------------------------------------------------------------------------- //
+// §51 IdempotencyRecord — duplicate-operation protection
+// --------------------------------------------------------------------------- //
+
+model IdempotencyRecord {
+  id             String            @id @default(uuid())
+  companyId      String            @map("company_id")
+  idempotencyKey String            @map("idempotency_key")
+  operationType  String            @map("operation_type")
+  resourceType   String?           @map("resource_type")
+  resourceId     String?           @map("resource_id")
+  requestHash    String            @map("request_hash")
+  status         IdempotencyStatus @default(IN_PROGRESS)
+  responseJson   Json?             @map("response_json")
+  createdAt      DateTime          @default(now()) @map("created_at")
+  expiresAt      DateTime?         @map("expires_at")
+
+  // Unique per (company, operation_type, idempotency_key) (§51/§65).
+  @@unique([companyId, operationType, idempotencyKey])
+  @@index([companyId])
+  @@map("idempotency_records")
+}
+
+// --------------------------------------------------------------------------- //
+// §21 TrajectoryTrace — one logical agent execution/trajectory
+// --------------------------------------------------------------------------- //
+
+model TrajectoryTrace {
+  id           String                @id @default(uuid())
+  companyId    String                @map("company_id")
+  agentId      String                @map("agent_id")
+  intentId     String?               @map("intent_id")
+  traceHash    String?               @map("trace_hash")
+  status       TrajectoryTraceStatus @default(ACTIVE)
+  // The highest committed sequence number in this trace; the next event must be
+  // sequenceHead + 1. Used for ordering + duplicate/gap detection.
+  sequenceHead Int                   @default(0) @map("sequence_head")
+  // The event_hash of the most recently appended event — the chain head that the
+  // next event's previous_event_hash must match.
+  headHash     String?               @map("head_hash")
+  createdAt    DateTime              @default(now()) @map("created_at")
+  completedAt  DateTime?             @map("completed_at")
+
+  company Company           @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  events  TrajectoryEvent[]
+
+  @@index([companyId])
+  @@index([agentId])
+  @@index([status])
+  @@map("trajectory_traces")
+}
+
+// --------------------------------------------------------------------------- //
+// §22 TrajectoryEvent — append-only observable events (hash-chained)
+// --------------------------------------------------------------------------- //
+
+model TrajectoryEvent {
+  id        String   @id @default(uuid())
+  traceId   String   @map("trace_id")
+  companyId String   @map("company_id")
+  agentId   String   @map("agent_id")
+  sequence  Int
+  eventType String   @map("event_type")
+  timestamp DateTime
+  payloadJson Json   @map("payload_json")
+  sourceRef String?  @map("source_ref")
+  trustContextJson Json? @map("trust_context_json")
+  // Provenance references (evidence ids / external source refs) — stored as JSONB.
+  provenanceRefsJson Json? @map("provenance_refs_json")
+  previousEventHash String @map("previous_event_hash")
+  eventHash         String @map("event_hash")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  trace   TrajectoryTrace @relation(fields: [traceId], references: [id], onDelete: Restrict)
+  company Company         @relation(fields: [companyId], references: [id], onDelete: Restrict)
+
+  // (trace_id, sequence) unique — a duplicate sequence can never overwrite (§22/§23).
+  @@unique([traceId, sequence])
+  // event_hash is globally unique — replay of the same event is rejected.
+  @@unique([eventHash])
+  @@index([traceId])
+  @@index([companyId])
+  @@index([createdAt])
+  @@map("trajectory_events")
+}
+
+// --------------------------------------------------------------------------- //
+// §35 Decision — authoritative, append-only/versioned Core decision
+// --------------------------------------------------------------------------- //
+
+model Decision {
+  id        String             @id @default(uuid())
+  companyId String             @map("company_id")
+  agentId   String             @map("agent_id")
+  intentId  String             @map("intent_id")
+  proposalId String            @map("proposal_id")
+
+  // Exact references to the authoritative inputs (§35).
+  policyId            String? @map("policy_id")
+  policyVersionId     String? @map("policy_version_id")
+  securityAssessmentId String? @map("security_assessment_id")
+  transactionId       String? @map("transaction_id")
+  simulationResultId  String? @map("simulation_result_id")
+  approvalRequestId   String? @map("approval_request_id")
+
+  result        DecisionResultEnum
+  reasonsJson   Json   @map("reasons_json")
+  determinant   String
+  decisionContextHash String @map("decision_context_hash")
+  version       Int    @default(1)
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  company  Company           @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  approvals ApprovalRequest[]
+
+  @@index([companyId])
+  @@index([agentId])
+  @@index([proposalId])
+  @@index([result])
+  @@index([createdAt])
+  @@map("decisions")
+}
+
+// --------------------------------------------------------------------------- //
+// §37 ApprovalRequest — human approval bound to the exact decision context
+// --------------------------------------------------------------------------- //
+
+model ApprovalRequest {
+  id              String                @id @default(uuid())
+  companyId       String                @map("company_id")
+  agentId         String                @map("agent_id")
+  decisionId      String                @map("decision_id")
+  transactionId   String?               @map("transaction_id")
+  policyVersionId String?               @map("policy_version_id")
+  requiredRole    String                @map("required_role")
+  summaryJson     Json                  @map("summary_json")
+  // Binds the approval to the EXACT decision context (§30/§38). A later context change
+  // invalidates the approval.
+  contextHash     String                @map("context_hash")
+  status          ApprovalRequestStatus @default(PENDING)
+  expiresAt       DateTime              @map("expires_at")
+  createdAt       DateTime              @default(now()) @map("created_at")
+
+  company  Company          @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  decision Decision         @relation(fields: [decisionId], references: [id], onDelete: Restrict)
+  results  ApprovalResult[]
+
+  @@index([companyId])
+  @@index([decisionId])
+  @@index([status])
+  @@index([expiresAt])
+  @@map("approval_requests")
+}
+
+// --------------------------------------------------------------------------- //
+// §38 ApprovalResult — the recorded human decision on an ApprovalRequest
+// --------------------------------------------------------------------------- //
+
+model ApprovalResult {
+  id                String             @id @default(uuid())
+  approvalRequestId String             @map("approval_request_id")
+  decisionId        String             @map("decision_id")
+  approverId        String             @map("approver_id")
+  approverRole      String             @map("approver_role")
+  result            ApprovalResultEnum
+  // The context hash the approver acted on; must match the request's context hash.
+  contextHash       String             @map("context_hash")
+  createdAt         DateTime           @default(now()) @map("created_at")
+
+  request ApprovalRequest @relation(fields: [approvalRequestId], references: [id], onDelete: Restrict)
+
+  @@index([approvalRequestId])
+  @@map("approval_results")
+}
+
+// --------------------------------------------------------------------------- //
+// §39 ExecutionRequest — Core-created execution authorization (crosses to Person 4)
+// --------------------------------------------------------------------------- //
+
+model ExecutionRequestRecord {
+  id        String                 @id @default(uuid())
+  companyId String                 @map("company_id")
+  agentId   String                 @map("agent_id")
+  decisionId String                @map("decision_id")
+  transactionId String             @map("transaction_id")
+  policyVersionId String?          @map("policy_version_id")
+
+  authorizationContextHash String  @map("authorization_context_hash")
+  // Stable idempotency key (§35): same logical execution -> same key -> one execution.
+  idempotencyKey String           @map("idempotency_key")
+  executorType  String            @map("executor_type")
+  network       String
+  status        ExecutionRequestStatus @default(CREATED)
+  createdAt     DateTime           @default(now()) @map("created_at")
+  authorizedAt  DateTime?          @map("authorized_at")
+
+  company Company            @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  results ExecutionResultRecord[]
+  receipts ReceiptVerificationRecord[]
+  attestations AttestationRecord[]
+
+  // One canonical execution per idempotency key within a company (§65).
+  @@unique([companyId, idempotencyKey])
+  @@index([companyId])
+  @@index([agentId])
+  @@index([status])
+  @@index([idempotencyKey])
+  @@map("execution_requests")
+}
+
+// --------------------------------------------------------------------------- //
+// §40 ExecutionResult — outcome reported by the Execution subsystem
+// --------------------------------------------------------------------------- //
+
+model ExecutionResultRecord {
+  id                 String                @id @default(uuid())
+  executionRequestId String                @map("execution_request_id")
+  transactionHash    String?               @map("transaction_hash")
+  status             ExecutionResultStatus
+  chain              String
+  submittedAt        DateTime?             @map("submitted_at")
+  confirmedAt        DateTime?             @map("confirmed_at")
+  rawReference       String?               @map("raw_reference")
+  providerMetadataJson Json?               @map("provider_metadata_json")
+  createdAt          DateTime              @default(now()) @map("created_at")
+
+  request ExecutionRequestRecord @relation(fields: [executionRequestId], references: [id], onDelete: Restrict)
+
+  @@index([executionRequestId])
+  @@index([status])
+  @@map("execution_results")
+}
+
+// --------------------------------------------------------------------------- //
+// §41 ReceiptVerification — independent verification of actual vs authorized
+// --------------------------------------------------------------------------- //
+
+model ReceiptVerificationRecord {
+  id                 String                    @id @default(uuid())
+  executionRequestId String                    @map("execution_request_id")
+  status             ReceiptVerificationStatus @default(PENDING)
+  verified           Boolean                   @default(false)
+  transactionHash    String?                   @map("transaction_hash")
+  expectedJson       Json                      @map("expected_json")
+  actualJson         Json                      @map("actual_json")
+  discrepanciesJson  Json                      @map("discrepancies_json")
+  verifiedAt         DateTime?                 @map("verified_at")
+  createdAt          DateTime                  @default(now()) @map("created_at")
+
+  request ExecutionRequestRecord @relation(fields: [executionRequestId], references: [id], onDelete: Restrict)
+
+  @@index([executionRequestId])
+  @@index([status])
+  @@map("receipt_verifications")
+}
+
+// --------------------------------------------------------------------------- //
+// §48 AuditEvent — append-only, hash-chained lifecycle record
+// --------------------------------------------------------------------------- //
+
+model AuditEvent {
+  id            String   @id @default(uuid())
+  companyId     String   @map("company_id")
+  agentId       String?  @map("agent_id")
+  correlationId String?  @map("correlation_id")
+  requestId     String?  @map("request_id")
+  entityType    String   @map("entity_type")
+  entityId      String   @map("entity_id")
+  eventType     String   @map("event_type")
+  actorType     String   @map("actor_type")
+  actorId       String   @map("actor_id")
+  payloadJson   Json     @map("payload_json")
+  previousEventHash String @map("previous_event_hash")
+  eventHash     String   @map("event_hash")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Restrict)
+
+  // event_hash globally unique — idempotent audit append (replay-safe).
+  @@unique([eventHash])
+  @@index([companyId])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+  @@map("audit_events")
+}
+
+// --------------------------------------------------------------------------- //
+// §50 AttestationRecord — minimal on-chain commitment (via abstract adapter)
+// --------------------------------------------------------------------------- //
+
+model AttestationRecord {
+  id                 String            @id @default(uuid())
+  companyId          String            @map("company_id")
+  agentId            String            @map("agent_id")
+  executionRequestId String            @map("execution_request_id")
+  decisionId         String            @map("decision_id")
+  traceMerkleRoot    String            @map("trace_merkle_root")
+  policyHash         String            @map("policy_hash")
+  decision           String
+  transactionHash    String?           @map("transaction_hash")
+  status             AttestationStatus @default(PENDING)
+  registryTxHash     String?           @map("registry_tx_hash")
+  createdAt          DateTime          @default(now()) @map("created_at")
+  confirmedAt        DateTime?         @map("confirmed_at")
+
+  company Company                @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  request ExecutionRequestRecord @relation(fields: [executionRequestId], references: [id], onDelete: Restrict)
+
+  @@index([companyId])
+  @@index([executionRequestId])
+  @@index([status])
+  @@map("attestation_records")
+}
+
+// --------------------------------------------------------------------------- //
+// §17 Intent — user goal (from the AI layer), durably owned by Core
+// --------------------------------------------------------------------------- //
+
+model IntentRecord {
+  id            String             @id @default(uuid())
+  companyId     String             @map("company_id")
+  agentId       String             @map("agent_id")
+  schemaVersion String             @default("intent.v1") @map("schema_version")
+  userGoal      String             @map("user_goal")
+  purpose       String             @default("")
+  desiredOutcome String            @default("") @map("desired_outcome")
+  intentJson    Json               @map("intent_json")
+  autonomyLevel String             @default("MANUAL") @map("autonomy_level")
+  validFrom     DateTime           @map("valid_from")
+  validUntil    DateTime           @map("valid_until")
+  status        IntentRecordStatus @default(VALID)
+  createdAt     DateTime           @default(now()) @map("created_at")
+  updatedAt     DateTime           @updatedAt @map("updated_at")
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@index([companyId])
+  @@index([agentId])
+  @@index([status])
+  @@map("intents")
+}
+
+// --------------------------------------------------------------------------- //
+// §19 ActionProposal — agent-proposed action, bound to an intent
+// --------------------------------------------------------------------------- //
+
+model ActionProposalRecord {
+  id            String               @id @default(uuid())
+  companyId     String               @map("company_id")
+  agentId       String               @map("agent_id")
+  intentId      String               @map("intent_id")
+  traceId       String?              @map("trace_id")
+  schemaVersion String               @default("action_proposal.v1") @map("schema_version")
+  actionType    String               @map("action_type")
+  purpose       String               @default("")
+  proposalJson  Json                 @map("proposal_json")
+  paymentMethod String?              @map("payment_method")
+  network       String?
+  evidenceRefsJson Json?             @map("evidence_refs_json")
+  trajectoryRefsJson Json?           @map("trajectory_refs_json")
+  status        ProposalRecordStatus @default(RECEIVED)
+  createdAt     DateTime             @default(now()) @map("created_at")
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@index([companyId])
+  @@index([agentId])
+  @@index([intentId])
+  @@index([traceId])
+  @@index([status])
+  @@map("action_proposals")
+}
+
+// --------------------------------------------------------------------------- //
+// §25 SecurityAssessment — AI intelligence, stored as evidence (NOT authority)
+// --------------------------------------------------------------------------- //
+
+model SecurityAssessmentRecord {
+  id            String   @id @default(uuid())
+  companyId     String   @map("company_id")
+  agentId       String?  @map("agent_id")
+  proposalId    String   @map("proposal_id")
+  traceId       String?  @map("trace_id")
+  schemaVersion String   @default("security_assessment.v1") @map("schema_version")
+  assessmentJson Json    @map("assessment_json")
+  overallStatus String   @map("overall_status")
+  recommendedHandling String @map("recommended_handling")
+  assessmentHash String  @map("assessment_hash")
+  modelMetadataJson Json? @map("model_metadata_json")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@index([companyId])
+  @@index([proposalId])
+  @@map("security_assessments")
+}

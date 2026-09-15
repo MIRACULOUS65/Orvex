@@ -1,0 +1,25 @@
+{
+  "schema_version": "intent.v1",
+  "intent_id": "intent_001",
+  "user_id": "user_001",
+  "agent_id": "agent_001",
+  "user_goal": "Pay the monthly API subscription",
+  "purpose": "Maintain access to the data provider API",
+  "desired_outcome": "Subscription renewed for one month",
+  "constraints": ["only USDC", "only base-sepolia"],
+  "budget": {
+    "maximum": "100.00",
+    "currency": "USDC",
+    "period": "monthly"
+  },
+  "authorized_actions": ["PAY"],
+  "forbidden_actions": ["TRANSFER"],
+  "autonomy_level": "CONDITIONAL",
+  "approval_conditions": ["amount > 50.00"],
+  "valid_from": "2026-09-11T12:00:00Z",
+  "valid_until": "2026-10-11T12:00:00Z",
+  "status": "VALID",
+  "confidence": 0.92,
+  "ambiguities": [],
+  "created_at": "2026-09-11T12:00:00Z"
+}
